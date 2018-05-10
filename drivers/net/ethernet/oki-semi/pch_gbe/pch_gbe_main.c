@@ -25,6 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/at803x_phy.h>
+#include <linux/of_mdio.h>
 
 #define DRV_VERSION     "1.01"
 const char pch_driver_version[] = DRV_VERSION;
@@ -828,6 +829,9 @@ static int pch_gbe_init_mdio(struct pch_gbe_adapter *adapter)
 	bus->priv = adapter;
 
 	adapter->mdiobus = bus;
+
+	if (dev->of_node)
+		return of_mdiobus_register(bus, dev->of_node);
 
 	return mdiobus_register(bus);
 }
