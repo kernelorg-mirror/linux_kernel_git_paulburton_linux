@@ -144,8 +144,17 @@
 				eg20t_mac@2,0,1 {
 					compatible = "pci8086,8802";
 					reg = <0x00020100 0 0 0 0>;
-					phy-reset-gpios = <&eg20t_gpio 6
-							   GPIO_ACTIVE_LOW>;
+
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					ethernet-phy@0 {
+						compatible = "ethernet-phy-id001c.c915";
+						reg = <0>;
+						reset-gpios = <&eg20t_gpio 6 GPIO_ACTIVE_LOW>;
+						reset-assert-us = <25000>;
+						reset-deassert-us = <25000>;
+					};
 				};
 
 				eg20t_gpio: eg20t_gpio@2,0,2 {
