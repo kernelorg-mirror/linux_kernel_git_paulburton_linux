@@ -231,31 +231,13 @@ struct __large_struct { unsigned long buf[100]; };
 #ifndef CONFIG_EVA
 #define __get_kernel_common(val, size, ptr) __get_user_common(val, size, ptr)
 #else
-/*
- * Kernel specific functions for EVA. We need to use normal load instructions
- * to read data from kernel when operating in EVA mode. We use these macros to
- * avoid redefining __get_user_asm for EVA.
- */
-#undef _loadd
-#undef _loadw
-#undef _loadh
-#undef _loadb
-#ifdef CONFIG_32BIT
-#define _loadd			_loadw
-#else
-#define _loadd(reg, addr)	"ld " reg ", " addr
-#endif
-#define _loadw(reg, addr)	"lw " reg ", " addr
-#define _loadh(reg, addr)	"lh " reg ", " addr
-#define _loadb(reg, addr)	"lb " reg ", " addr
-
 #define __get_kernel_common(val, size, ptr)				\
 do {									\
 	switch (size) {							\
-	case 1: __get_data_asm(val, _loadb, ptr); break;		\
-	case 2: __get_data_asm(val, _loadh, ptr); break;		\
-	case 4: __get_data_asm(val, _loadw, ptr); break;		\
-	case 8: __GET_DW(val, _loadd, ptr); break;			\
+	case 1: __get_data_asm(val, kernel_lb, ptr); break;		\
+	case 2: __get_data_asm(val, kernel_lh, ptr); break;		\
+	case 4: __get_data_asm(val, kernel_lw, ptr); break;		\
+	case 8: __GET_DW(val, kernel_ld, ptr); break;			\
 	default: __get_user_unknown(); break;				\
 	}								\
 } while (0)
@@ -367,32 +349,13 @@ do {									\
 #ifndef CONFIG_EVA
 #define __put_kernel_common(ptr, size) __put_user_common(ptr, size)
 #else
-/*
- * Kernel specific functions for EVA. We need to use normal load instructions
- * to read data from kernel when operating in EVA mode. We use these macros to
- * avoid redefining __get_data_asm for EVA.
- */
-#undef _stored
-#undef _storew
-#undef _storeh
-#undef _storeb
-#ifdef CONFIG_32BIT
-#define _stored			_storew
-#else
-#define _stored(reg, addr)	"ld " reg ", " addr
-#endif
-
-#define _storew(reg, addr)	"sw " reg ", " addr
-#define _storeh(reg, addr)	"sh " reg ", " addr
-#define _storeb(reg, addr)	"sb " reg ", " addr
-
 #define __put_kernel_common(ptr, size)					\
 do {									\
 	switch (size) {							\
-	case 1: __put_data_asm(_storeb, ptr); break;			\
-	case 2: __put_data_asm(_storeh, ptr); break;			\
-	case 4: __put_data_asm(_storew, ptr); break;			\
-	case 8: __PUT_DW(_stored, ptr); break;				\
+	case 1: __put_data_asm(kernel_sb, ptr); break;			\
+	case 2: __put_data_asm(kernel_sh, ptr); break;			\
+	case 4: __put_data_asm(kernel_sw, ptr); break;			\
+	case 8: __PUT_DW(kernel_sd, ptr); break;			\
 	default: __put_user_unknown(); break;				\
 	}								\
 } while(0)
