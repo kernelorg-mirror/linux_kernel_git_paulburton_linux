@@ -8,6 +8,8 @@
 #ifndef __ASM_PREFETCH_H
 #define __ASM_PREFETCH_H
 
+#include <asm/asm-eva.h>
+#include <asm/cpu-info.h>
 
 /*
  * R5000 and RM5200 implements pref and prefx instructions but they're nops, so
@@ -42,46 +44,41 @@
 #define Pref_WriteBackInvalidate	25
 #define Pref_PrepareForStore		30
 
-#ifdef __ASSEMBLY__
+#define __GEN_PREF(mode, name, hint)					\
+static inline void pref_##mode##_##name(const void __##mode *addr)	\
+{									\
+	/*								\
+	 * If we aren't sure whether the CPU supports prefetch, don't   \
+	 * emit them - the extra runtime checks are likely to cost us   \
+	 * more than the prefetching will help.				\
+	 */								\
+	if (!__builtin_constant_p(cpu_has_prefetch))			\
+		return;							\
+									\
+	if (cpu_has_prefetch)						\
+		asm volatile(mode##_pref(hint, "%0")			\
+			     : /* no outputs */				\
+			     : "m"(*(const char *)addr));		\
+}
 
-	.macro	__pref hint addr
-#ifdef CONFIG_CPU_HAS_PREFETCH
-	pref	\hint, \addr
-#endif
-	.endm
+__GEN_PREF(kernel, load, Pref_Load)
+__GEN_PREF(kernel, store, Pref_Store)
+__GEN_PREF(kernel, load_streamed, Pref_LoadStreamed)
+__GEN_PREF(kernel, store_streamed, Pref_StoreStreamed)
+__GEN_PREF(kernel, load_retained, Pref_LoadRetained)
+__GEN_PREF(kernel, store_retained, Pref_StoreRetained)
+__GEN_PREF(kernel, writeback_inv, Pref_WriteBackInvalidate)
+__GEN_PREF(kernel, prepare_for_store, Pref_PrepareForStore)
 
-	.macro	pref_load addr
-	__pref	Pref_Load, \addr
-	.endm
+__GEN_PREF(user, load, Pref_Load)
+__GEN_PREF(user, store, Pref_Store)
+__GEN_PREF(user, load_streamed, Pref_LoadStreamed)
+__GEN_PREF(user, store_streamed, Pref_StoreStreamed)
+__GEN_PREF(user, load_retained, Pref_LoadRetained)
+__GEN_PREF(user, store_retained, Pref_StoreRetained)
+__GEN_PREF(user, writeback_inv, Pref_WriteBackInvalidate)
+__GEN_PREF(user, prepare_for_store, Pref_PrepareForStore)
 
-	.macro	pref_store addr
-	__pref	Pref_Store, \addr
-	.endm
-
-	.macro	pref_load_streamed addr
-	__pref	Pref_LoadStreamed, \addr
-	.endm
-
-	.macro	pref_store_streamed addr
-	__pref	Pref_StoreStreamed, \addr
-	.endm
-
-	.macro	pref_load_retained addr
-	__pref	Pref_LoadRetained, \addr
-	.endm
-
-	.macro	pref_store_retained addr
-	__pref	Pref_StoreRetained, \addr
-	.endm
-
-	.macro	pref_wback_inv addr
-	__pref	Pref_WriteBackInvalidate, \addr
-	.endm
-
-	.macro	pref_prepare_for_store addr
-	__pref	Pref_PrepareForStore, \addr
-	.endm
-
-#endif
+#undef __GEN_PREF
 
 #endif /* __ASM_PREFETCH_H */

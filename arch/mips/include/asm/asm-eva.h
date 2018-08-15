@@ -10,6 +10,8 @@
 #ifndef __ASM_ASM_EVA_H
 #define __ASM_ASM_EVA_H
 
+#include <linux/stringify.h>
+
 #ifndef __ASSEMBLY__
 
 /* Kernel variants */
@@ -23,6 +25,7 @@
 #define kernel_lh(reg, addr)		"lh " reg ", " addr "\n"
 #define kernel_lb(reg, addr)		"lb " reg ", " addr "\n"
 #define kernel_lbu(reg, addr)		"lbu " reg ", " addr "\n"
+#define kernel_pref(hint, addr)		"pref " __stringify(hint) ", " addr "\n"
 #define kernel_sw(reg, addr)		"sw " reg ", " addr "\n"
 #define kernel_swl(reg, addr)		"swl " reg ", " addr "\n"
 #define kernel_swr(reg, addr)		"swr " reg ", " addr "\n"
@@ -61,6 +64,7 @@
 #define user_lbu(reg, addr)		__BUILD_EVA_INSN("lbue", reg, addr)
 /* No 64-bit EVA instruction for loading double words */
 #define user_ld(reg, addr)		user_lw(reg, addr)
+#define user_pref(hint, addr)           __BUILD_EVA_INSN("prefe", __stringify(hint), addr)
 #define user_sw(reg, addr)		__BUILD_EVA_INSN("swe", reg, addr)
 #define user_swl(reg, addr)		__BUILD_EVA_INSN("swle", reg, addr)
 #define user_swr(reg, addr)		__BUILD_EVA_INSN("swre", reg, addr)
@@ -80,6 +84,7 @@
 #define user_lh(reg, addr)		kernel_lh(reg, addr)
 #define user_lb(reg, addr)		kernel_lb(reg, addr)
 #define user_lbu(reg, addr)		kernel_lbu(reg, addr)
+#define user_pref(hint, addr)           kernel_pref(hint, addr)
 #define user_sw(reg, addr)		kernel_sw(reg, addr)
 #define user_swl(reg, addr)		kernel_swl(reg, addr)
 #define user_swr(reg, addr)		kernel_swr(reg, addr)
@@ -107,6 +112,7 @@
 #define kernel_lh(reg, addr)		lh reg, addr
 #define kernel_lb(reg, addr)		lb reg, addr
 #define kernel_lbu(reg, addr)		lbu reg, addr
+#define kernel_pref(hint, addr)         pref __stringify(hint), addr
 #define kernel_sw(reg, addr)		sw reg, addr
 #define kernel_swl(reg, addr)		swl reg, addr
 #define kernel_swr(reg, addr)		swr reg, addr
@@ -145,6 +151,7 @@
 #define user_lbu(reg, addr)		__BUILD_EVA_INSN(lbue, reg, addr)
 /* No 64-bit EVA instruction for loading double words */
 #define user_ld(reg, addr)		user_lw(reg, addr)
+#define user_pref(hint, addr)           __BUILD_EVA_INSN(prefe, __stringify(hint), addr)
 #define user_sw(reg, addr)		__BUILD_EVA_INSN(swe, reg, addr)
 #define user_swl(reg, addr)		__BUILD_EVA_INSN(swle, reg, addr)
 #define user_swr(reg, addr)		__BUILD_EVA_INSN(swre, reg, addr)
@@ -163,6 +170,7 @@
 #define user_lh(reg, addr)		kernel_lh(reg, addr)
 #define user_lb(reg, addr)		kernel_lb(reg, addr)
 #define user_lbu(reg, addr)		kernel_lbu(reg, addr)
+#define user_pref(hint, addr)           kernel_pref(hint, addr)
 #define user_sw(reg, addr)		kernel_sw(reg, addr)
 #define user_swl(reg, addr)		kernel_swl(reg, addr)
 #define user_swr(reg, addr)		kernel_swr(reg, addr)
