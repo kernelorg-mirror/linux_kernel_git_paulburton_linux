@@ -66,6 +66,12 @@
 #define pref_both(__src, __dst, offset)         \
         _pref_both(__src, __dst, offset)
 
+#ifdef CONFIG_CPU_CAVIUM_OCTEON
+# define need_aligned_stores false
+#else
+# define need_aligned_stores true
+#endif
+
 __ret_type __func(void *dst, const void *src, size_t size)
 {
 	size_t line_size, prefetch_lines;
@@ -86,7 +92,8 @@ __ret_type __func(void *dst, const void *src, size_t size)
 	 * the size of a long then fall back to a straightforward but slow byte
 	 * copy.
 	 */
-	if (unlikely((d.addr % sizeof(long)) != (s.addr % sizeof(long))))
+	if (need_aligned_stores &&
+            unlikely((d.addr % sizeof(long)) != (s.addr % sizeof(long))))
 		goto remaining_bytes;
 
 	/*
