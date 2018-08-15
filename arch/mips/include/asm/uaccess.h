@@ -150,8 +150,14 @@ static inline int __access_ok(const void __user *p, unsigned long size)
  *
  * Returns zero on success, or -EFAULT on error.
  */
-#define put_user(x,ptr) \
-	__put_user_check((x), (ptr), sizeof(*(ptr)))
+#define put_user(x, ptr)					\
+({								\
+	void __user *__p = (ptr);				\
+	might_fault();						\
+	access_ok(VERIFY_WRITE, __p, sizeof(*ptr)) ?		\
+		__put_user((x), ((__typeof__(*(ptr)) __user *)__p)) :	\
+		-EFAULT;					\
+})
 
 /*
  * get_user: - Get a simple variable from user space.
@@ -171,8 +177,14 @@ static inline int __access_ok(const void __user *p, unsigned long size)
  * Returns zero on success, or -EFAULT on error.
  * On error, the variable @x is set to zero.
  */
-#define get_user(x,ptr) \
-	__get_user_check((x), (ptr), sizeof(*(ptr)))
+#define get_user(x, ptr)					\
+({								\
+	const void __user *__p = (ptr);				\
+	might_fault();						\
+	access_ok(VERIFY_READ, __p, sizeof(*ptr)) ?		\
+		__get_user((x), (__typeof__(*(ptr)) __user *)__p) :\
+		((x) = (__typeof__(*(ptr)))0,-EFAULT);		\
+})
 
 /*
  * __put_user: - Write a simple value into user space, with less checking.
@@ -273,23 +285,6 @@ do {									\
 		__chk_user_ptr(ptr);					\
 		__get_user_common((x), size, ptr);			\
 	}								\
-	__gu_err;							\
-})
-
-#define __get_user_check(x, ptr, size)					\
-({									\
-	int __gu_err = -EFAULT;						\
-	const __typeof__(*(ptr)) __user * __gu_ptr = (ptr);		\
-									\
-	might_fault();							\
-	if (likely(access_ok(VERIFY_READ,  __gu_ptr, size))) {		\
-		if (eva_kernel_access())				\
-			__get_kernel_common((x), size, __gu_ptr);	\
-		else							\
-			__get_user_common((x), size, __gu_ptr);		\
-	} else								\
-		(x) = 0;						\
-									\
 	__gu_err;							\
 })
 
@@ -395,23 +390,6 @@ do {									\
 		__chk_user_ptr(ptr);					\
 		__put_user_common(ptr, size);				\
 	}								\
-	__pu_err;							\
-})
-
-#define __put_user_check(x, ptr, size)					\
-({									\
-	__typeof__(*(ptr)) __user *__pu_addr = (ptr);			\
-	__typeof__(*(ptr)) __pu_val = (x);				\
-	int __pu_err = -EFAULT;						\
-									\
-	might_fault();							\
-	if (likely(access_ok(VERIFY_WRITE,  __pu_addr, size))) {	\
-		if (eva_kernel_access())				\
-			__put_kernel_common(__pu_addr, size);		\
-		else							\
-			__put_user_common(__pu_addr, size);		\
-	}								\
-									\
 	__pu_err;							\
 })
 
