@@ -309,18 +309,4 @@ EXPORT_SYMBOL(memset)
 #endif
 	or		a1, t1
 1:
-#ifndef CONFIG_EVA
-FEXPORT(__bzero)
-EXPORT_SYMBOL(__bzero)
-#else
-FEXPORT(__bzero_kernel)
-EXPORT_SYMBOL(__bzero_kernel)
-#endif
 	__BUILD_BZERO LEGACY_MODE
-
-#ifdef CONFIG_EVA
-LEAF(__bzero)
-EXPORT_SYMBOL(__bzero)
-	__BUILD_BZERO EVA_MODE
-END(__bzero)
-#endif

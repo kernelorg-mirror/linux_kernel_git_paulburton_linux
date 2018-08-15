@@ -4,6 +4,7 @@
 #
 
 lib-y	+= bitops.o
+lib-y	+= clear_user.o
 lib-y	+= csum_partial.o
 lib-y	+= delay.o
 lib-y	+= memcpy.o

@@ -635,57 +635,7 @@ raw_copy_in_user(void __user*to, const void __user *from, unsigned long n)
 		return ___invoke_copy_in_user(to, from,	n);
 }
 
-extern __kernel_size_t __bzero_kernel(void __user *addr, __kernel_size_t size);
-extern __kernel_size_t __bzero(void __user *addr, __kernel_size_t size);
-
-/*
- * __clear_user: - Zero a block of memory in user space, with less checking.
- * @to:	  Destination address, in user space.
- * @n:	  Number of bytes to zero.
- *
- * Zero a block of memory in user space.  Caller must check
- * the specified block with access_ok() before calling this function.
- *
- * Returns number of bytes that could not be cleared.
- * On success, this will be zero.
- */
-static inline __kernel_size_t
-__clear_user(void __user *addr, __kernel_size_t size)
-{
-	__kernel_size_t res;
-
-#ifdef CONFIG_CPU_MICROMIPS
-/* micromips memset / bzero also clobbers t7 & t8 */
-#define bzero_clobbers "$4", "$5", "$6", __UA_t0, __UA_t1, "$15", "$24", "$31"
-#else
-#define bzero_clobbers "$4", "$5", "$6", __UA_t0, __UA_t1, "$31"
-#endif /* CONFIG_CPU_MICROMIPS */
-
-	if (eva_kernel_access()) {
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, $0\n\t"
-			"move\t$6, %2\n\t"
-			__MODULE_JAL(__bzero_kernel)
-			"move\t%0, $6"
-			: "=r" (res)
-			: "r" (addr), "r" (size)
-			: bzero_clobbers);
-	} else {
-		might_fault();
-		__asm__ __volatile__(
-			"move\t$4, %1\n\t"
-			"move\t$5, $0\n\t"
-			"move\t$6, %2\n\t"
-			__MODULE_JAL(__bzero)
-			"move\t%0, $6"
-			: "=r" (res)
-			: "r" (addr), "r" (size)
-			: bzero_clobbers);
-	}
-
-	return res;
-}
+extern __must_check unsigned long __clear_user(void __user *to, unsigned long n);
 
 #define clear_user(addr,n)						\
 ({									\
