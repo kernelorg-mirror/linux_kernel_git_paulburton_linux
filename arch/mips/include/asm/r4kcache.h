@@ -13,14 +13,16 @@
 #define _ASM_R4KCACHE_H
 
 #include <linux/stringify.h>
+#include <linux/uaccess.h> /* for uaccess_kernel() */
 
 #include <asm/asm.h>
+#include <asm/asm-eva.h>
 #include <asm/cacheops.h>
 #include <asm/compiler.h>
 #include <asm/cpu-features.h>
 #include <asm/cpu-type.h>
 #include <asm/mipsmtregs.h>
-#include <linux/uaccess.h> /* for uaccess_kernel() */
+#include <asm/unroll.h>
 
 extern void (*r4k_blast_dcache)(void);
 extern void (*r4k_blast_icache)(void);
@@ -38,15 +40,18 @@ extern void (*r4k_blast_icache)(void);
  */
 #define INDEX_BASE	CKSEG0
 
-#define cache_op(op,addr)						\
+#define _cache_op(insn, op, addr)					\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
 	"	.set	noreorder				\n"	\
 	"	.set "MIPS_ISA_ARCH_LEVEL"			\n"	\
-	"	cache	%0, %1					\n"	\
+	"	" insn("%0", "%1") "				\n"	\
 	"	.set	pop					\n"	\
 	:								\
 	: "i" (op), "R" (*(unsigned char *)(addr)))
+
+#define cache_op(op, addr)						\
+        _cache_op(kernel_cache, op, addr)
 
 #ifdef CONFIG_MIPS_MT
 
@@ -242,338 +247,10 @@ static inline void invalidate_tcache_page(unsigned long addr)
 	cache_op(Page_Invalidate_T, addr);
 }
 
-#ifndef CONFIG_CPU_MIPSR6
-#define cache16_unroll32(base,op)					\
-	__asm__ __volatile__(						\
-	"	.set push					\n"	\
-	"	.set noreorder					\n"	\
-	"	.set mips3					\n"	\
-	"	cache %1, 0x000(%0); cache %1, 0x010(%0)	\n"	\
-	"	cache %1, 0x020(%0); cache %1, 0x030(%0)	\n"	\
-	"	cache %1, 0x040(%0); cache %1, 0x050(%0)	\n"	\
-	"	cache %1, 0x060(%0); cache %1, 0x070(%0)	\n"	\
-	"	cache %1, 0x080(%0); cache %1, 0x090(%0)	\n"	\
-	"	cache %1, 0x0a0(%0); cache %1, 0x0b0(%0)	\n"	\
-	"	cache %1, 0x0c0(%0); cache %1, 0x0d0(%0)	\n"	\
-	"	cache %1, 0x0e0(%0); cache %1, 0x0f0(%0)	\n"	\
-	"	cache %1, 0x100(%0); cache %1, 0x110(%0)	\n"	\
-	"	cache %1, 0x120(%0); cache %1, 0x130(%0)	\n"	\
-	"	cache %1, 0x140(%0); cache %1, 0x150(%0)	\n"	\
-	"	cache %1, 0x160(%0); cache %1, 0x170(%0)	\n"	\
-	"	cache %1, 0x180(%0); cache %1, 0x190(%0)	\n"	\
-	"	cache %1, 0x1a0(%0); cache %1, 0x1b0(%0)	\n"	\
-	"	cache %1, 0x1c0(%0); cache %1, 0x1d0(%0)	\n"	\
-	"	cache %1, 0x1e0(%0); cache %1, 0x1f0(%0)	\n"	\
-	"	.set pop					\n"	\
-		:							\
-		: "r" (base),						\
-		  "i" (op));
-
-#define cache32_unroll32(base,op)					\
-	__asm__ __volatile__(						\
-	"	.set push					\n"	\
-	"	.set noreorder					\n"	\
-	"	.set mips3					\n"	\
-	"	cache %1, 0x000(%0); cache %1, 0x020(%0)	\n"	\
-	"	cache %1, 0x040(%0); cache %1, 0x060(%0)	\n"	\
-	"	cache %1, 0x080(%0); cache %1, 0x0a0(%0)	\n"	\
-	"	cache %1, 0x0c0(%0); cache %1, 0x0e0(%0)	\n"	\
-	"	cache %1, 0x100(%0); cache %1, 0x120(%0)	\n"	\
-	"	cache %1, 0x140(%0); cache %1, 0x160(%0)	\n"	\
-	"	cache %1, 0x180(%0); cache %1, 0x1a0(%0)	\n"	\
-	"	cache %1, 0x1c0(%0); cache %1, 0x1e0(%0)	\n"	\
-	"	cache %1, 0x200(%0); cache %1, 0x220(%0)	\n"	\
-	"	cache %1, 0x240(%0); cache %1, 0x260(%0)	\n"	\
-	"	cache %1, 0x280(%0); cache %1, 0x2a0(%0)	\n"	\
-	"	cache %1, 0x2c0(%0); cache %1, 0x2e0(%0)	\n"	\
-	"	cache %1, 0x300(%0); cache %1, 0x320(%0)	\n"	\
-	"	cache %1, 0x340(%0); cache %1, 0x360(%0)	\n"	\
-	"	cache %1, 0x380(%0); cache %1, 0x3a0(%0)	\n"	\
-	"	cache %1, 0x3c0(%0); cache %1, 0x3e0(%0)	\n"	\
-	"	.set pop					\n"	\
-		:							\
-		: "r" (base),						\
-		  "i" (op));
-
-#define cache64_unroll32(base,op)					\
-	__asm__ __volatile__(						\
-	"	.set push					\n"	\
-	"	.set noreorder					\n"	\
-	"	.set mips3					\n"	\
-	"	cache %1, 0x000(%0); cache %1, 0x040(%0)	\n"	\
-	"	cache %1, 0x080(%0); cache %1, 0x0c0(%0)	\n"	\
-	"	cache %1, 0x100(%0); cache %1, 0x140(%0)	\n"	\
-	"	cache %1, 0x180(%0); cache %1, 0x1c0(%0)	\n"	\
-	"	cache %1, 0x200(%0); cache %1, 0x240(%0)	\n"	\
-	"	cache %1, 0x280(%0); cache %1, 0x2c0(%0)	\n"	\
-	"	cache %1, 0x300(%0); cache %1, 0x340(%0)	\n"	\
-	"	cache %1, 0x380(%0); cache %1, 0x3c0(%0)	\n"	\
-	"	cache %1, 0x400(%0); cache %1, 0x440(%0)	\n"	\
-	"	cache %1, 0x480(%0); cache %1, 0x4c0(%0)	\n"	\
-	"	cache %1, 0x500(%0); cache %1, 0x540(%0)	\n"	\
-	"	cache %1, 0x580(%0); cache %1, 0x5c0(%0)	\n"	\
-	"	cache %1, 0x600(%0); cache %1, 0x640(%0)	\n"	\
-	"	cache %1, 0x680(%0); cache %1, 0x6c0(%0)	\n"	\
-	"	cache %1, 0x700(%0); cache %1, 0x740(%0)	\n"	\
-	"	cache %1, 0x780(%0); cache %1, 0x7c0(%0)	\n"	\
-	"	.set pop					\n"	\
-		:							\
-		: "r" (base),						\
-		  "i" (op));
-
-#define cache128_unroll32(base,op)					\
-	__asm__ __volatile__(						\
-	"	.set push					\n"	\
-	"	.set noreorder					\n"	\
-	"	.set mips3					\n"	\
-	"	cache %1, 0x000(%0); cache %1, 0x080(%0)	\n"	\
-	"	cache %1, 0x100(%0); cache %1, 0x180(%0)	\n"	\
-	"	cache %1, 0x200(%0); cache %1, 0x280(%0)	\n"	\
-	"	cache %1, 0x300(%0); cache %1, 0x380(%0)	\n"	\
-	"	cache %1, 0x400(%0); cache %1, 0x480(%0)	\n"	\
-	"	cache %1, 0x500(%0); cache %1, 0x580(%0)	\n"	\
-	"	cache %1, 0x600(%0); cache %1, 0x680(%0)	\n"	\
-	"	cache %1, 0x700(%0); cache %1, 0x780(%0)	\n"	\
-	"	cache %1, 0x800(%0); cache %1, 0x880(%0)	\n"	\
-	"	cache %1, 0x900(%0); cache %1, 0x980(%0)	\n"	\
-	"	cache %1, 0xa00(%0); cache %1, 0xa80(%0)	\n"	\
-	"	cache %1, 0xb00(%0); cache %1, 0xb80(%0)	\n"	\
-	"	cache %1, 0xc00(%0); cache %1, 0xc80(%0)	\n"	\
-	"	cache %1, 0xd00(%0); cache %1, 0xd80(%0)	\n"	\
-	"	cache %1, 0xe00(%0); cache %1, 0xe80(%0)	\n"	\
-	"	cache %1, 0xf00(%0); cache %1, 0xf80(%0)	\n"	\
-	"	.set pop					\n"	\
-		:							\
-		: "r" (base),						\
-		  "i" (op));
-
-#else
-/*
- * MIPS R6 changed the cache opcode and moved to a 8-bit offset field.
- * This means we now need to increment the base register before we flush
- * more cache lines
- */
-#define cache16_unroll32(base,op)				\
-	__asm__ __volatile__(					\
-	"	.set push\n"					\
-	"	.set noreorder\n"				\
-	"	.set mips64r6\n"				\
-	"	.set noat\n"					\
-	"	cache %1, 0x000(%0); cache %1, 0x010(%0)\n"	\
-	"	cache %1, 0x020(%0); cache %1, 0x030(%0)\n"	\
-	"	cache %1, 0x040(%0); cache %1, 0x050(%0)\n"	\
-	"	cache %1, 0x060(%0); cache %1, 0x070(%0)\n"	\
-	"	cache %1, 0x080(%0); cache %1, 0x090(%0)\n"	\
-	"	cache %1, 0x0a0(%0); cache %1, 0x0b0(%0)\n"	\
-	"	cache %1, 0x0c0(%0); cache %1, 0x0d0(%0)\n"	\
-	"	cache %1, 0x0e0(%0); cache %1, 0x0f0(%0)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, %0, 0x100	\n"	\
-	"	cache %1, 0x000($1); cache %1, 0x010($1)\n"	\
-	"	cache %1, 0x020($1); cache %1, 0x030($1)\n"	\
-	"	cache %1, 0x040($1); cache %1, 0x050($1)\n"	\
-	"	cache %1, 0x060($1); cache %1, 0x070($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x090($1)\n"	\
-	"	cache %1, 0x0a0($1); cache %1, 0x0b0($1)\n"	\
-	"	cache %1, 0x0c0($1); cache %1, 0x0d0($1)\n"	\
-	"	cache %1, 0x0e0($1); cache %1, 0x0f0($1)\n"	\
-	"	.set pop\n"					\
-		:						\
-		: "r" (base),					\
-		  "i" (op));
-
-#define cache32_unroll32(base,op)				\
-	__asm__ __volatile__(					\
-	"	.set push\n"					\
-	"	.set noreorder\n"				\
-	"	.set mips64r6\n"				\
-	"	.set noat\n"					\
-	"	cache %1, 0x000(%0); cache %1, 0x020(%0)\n"	\
-	"	cache %1, 0x040(%0); cache %1, 0x060(%0)\n"	\
-	"	cache %1, 0x080(%0); cache %1, 0x0a0(%0)\n"	\
-	"	cache %1, 0x0c0(%0); cache %1, 0x0e0(%0)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, %0, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x020($1)\n"	\
-	"	cache %1, 0x040($1); cache %1, 0x060($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0a0($1)\n"	\
-	"	cache %1, 0x0c0($1); cache %1, 0x0e0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x020($1)\n"	\
-	"	cache %1, 0x040($1); cache %1, 0x060($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0a0($1)\n"	\
-	"	cache %1, 0x0c0($1); cache %1, 0x0e0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100\n"	\
-	"	cache %1, 0x000($1); cache %1, 0x020($1)\n"	\
-	"	cache %1, 0x040($1); cache %1, 0x060($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0a0($1)\n"	\
-	"	cache %1, 0x0c0($1); cache %1, 0x0e0($1)\n"	\
-	"	.set pop\n"					\
-		:						\
-		: "r" (base),					\
-		  "i" (op));
-
-#define cache64_unroll32(base,op)				\
-	__asm__ __volatile__(					\
-	"	.set push\n"					\
-	"	.set noreorder\n"				\
-	"	.set mips64r6\n"				\
-	"	.set noat\n"					\
-	"	cache %1, 0x000(%0); cache %1, 0x040(%0)\n"	\
-	"	cache %1, 0x080(%0); cache %1, 0x0c0(%0)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, %0, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x040($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0c0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x040($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0c0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x040($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0c0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x040($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0c0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x040($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0c0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x040($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0c0($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x040($1)\n"	\
-	"	cache %1, 0x080($1); cache %1, 0x0c0($1)\n"	\
-	"	.set pop\n"					\
-		:						\
-		: "r" (base),					\
-		  "i" (op));
-
-#define cache128_unroll32(base,op)				\
-	__asm__ __volatile__(					\
-	"	.set push\n"					\
-	"	.set noreorder\n"				\
-	"	.set mips64r6\n"				\
-	"	.set noat\n"					\
-	"	cache %1, 0x000(%0); cache %1, 0x080(%0)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, %0, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	"__stringify(LONG_ADDIU)" $1, $1, 0x100 \n"	\
-	"	cache %1, 0x000($1); cache %1, 0x080($1)\n"	\
-	"	.set pop\n"					\
-		:						\
-		: "r" (base),					\
-		  "i" (op));
-#endif /* CONFIG_CPU_MIPSR6 */
-
-/*
- * Perform the cache operation specified by op using a user mode virtual
- * address while in kernel mode.
- */
-#define cache16_unroll32_user(base,op)					\
-	__asm__ __volatile__(						\
-	"	.set push					\n"	\
-	"	.set noreorder					\n"	\
-	"	.set mips0					\n"	\
-	"	.set eva					\n"	\
-	"	cachee %1, 0x000(%0); cachee %1, 0x010(%0)	\n"	\
-	"	cachee %1, 0x020(%0); cachee %1, 0x030(%0)	\n"	\
-	"	cachee %1, 0x040(%0); cachee %1, 0x050(%0)	\n"	\
-	"	cachee %1, 0x060(%0); cachee %1, 0x070(%0)	\n"	\
-	"	cachee %1, 0x080(%0); cachee %1, 0x090(%0)	\n"	\
-	"	cachee %1, 0x0a0(%0); cachee %1, 0x0b0(%0)	\n"	\
-	"	cachee %1, 0x0c0(%0); cachee %1, 0x0d0(%0)	\n"	\
-	"	cachee %1, 0x0e0(%0); cachee %1, 0x0f0(%0)	\n"	\
-	"	cachee %1, 0x100(%0); cachee %1, 0x110(%0)	\n"	\
-	"	cachee %1, 0x120(%0); cachee %1, 0x130(%0)	\n"	\
-	"	cachee %1, 0x140(%0); cachee %1, 0x150(%0)	\n"	\
-	"	cachee %1, 0x160(%0); cachee %1, 0x170(%0)	\n"	\
-	"	cachee %1, 0x180(%0); cachee %1, 0x190(%0)	\n"	\
-	"	cachee %1, 0x1a0(%0); cachee %1, 0x1b0(%0)	\n"	\
-	"	cachee %1, 0x1c0(%0); cachee %1, 0x1d0(%0)	\n"	\
-	"	cachee %1, 0x1e0(%0); cachee %1, 0x1f0(%0)	\n"	\
-	"	.set pop					\n"	\
-		:							\
-		: "r" (base),						\
-		  "i" (op));
-
-#define cache32_unroll32_user(base, op)					\
-	__asm__ __volatile__(						\
-	"	.set push					\n"	\
-	"	.set noreorder					\n"	\
-	"	.set mips0					\n"	\
-	"	.set eva					\n"	\
-	"	cachee %1, 0x000(%0); cachee %1, 0x020(%0)	\n"	\
-	"	cachee %1, 0x040(%0); cachee %1, 0x060(%0)	\n"	\
-	"	cachee %1, 0x080(%0); cachee %1, 0x0a0(%0)	\n"	\
-	"	cachee %1, 0x0c0(%0); cachee %1, 0x0e0(%0)	\n"	\
-	"	cachee %1, 0x100(%0); cachee %1, 0x120(%0)	\n"	\
-	"	cachee %1, 0x140(%0); cachee %1, 0x160(%0)	\n"	\
-	"	cachee %1, 0x180(%0); cachee %1, 0x1a0(%0)	\n"	\
-	"	cachee %1, 0x1c0(%0); cachee %1, 0x1e0(%0)	\n"	\
-	"	cachee %1, 0x200(%0); cachee %1, 0x220(%0)	\n"	\
-	"	cachee %1, 0x240(%0); cachee %1, 0x260(%0)	\n"	\
-	"	cachee %1, 0x280(%0); cachee %1, 0x2a0(%0)	\n"	\
-	"	cachee %1, 0x2c0(%0); cachee %1, 0x2e0(%0)	\n"	\
-	"	cachee %1, 0x300(%0); cachee %1, 0x320(%0)	\n"	\
-	"	cachee %1, 0x340(%0); cachee %1, 0x360(%0)	\n"	\
-	"	cachee %1, 0x380(%0); cachee %1, 0x3a0(%0)	\n"	\
-	"	cachee %1, 0x3c0(%0); cachee %1, 0x3e0(%0)	\n"	\
-	"	.set pop					\n"	\
-		:							\
-		: "r" (base),						\
-		  "i" (op));
-
-#define cache64_unroll32_user(base, op)					\
-	__asm__ __volatile__(						\
-	"	.set push					\n"	\
-	"	.set noreorder					\n"	\
-	"	.set mips0					\n"	\
-	"	.set eva					\n"	\
-	"	cachee %1, 0x000(%0); cachee %1, 0x040(%0)	\n"	\
-	"	cachee %1, 0x080(%0); cachee %1, 0x0c0(%0)	\n"	\
-	"	cachee %1, 0x100(%0); cachee %1, 0x140(%0)	\n"	\
-	"	cachee %1, 0x180(%0); cachee %1, 0x1c0(%0)	\n"	\
-	"	cachee %1, 0x200(%0); cachee %1, 0x240(%0)	\n"	\
-	"	cachee %1, 0x280(%0); cachee %1, 0x2c0(%0)	\n"	\
-	"	cachee %1, 0x300(%0); cachee %1, 0x340(%0)	\n"	\
-	"	cachee %1, 0x380(%0); cachee %1, 0x3c0(%0)	\n"	\
-	"	cachee %1, 0x400(%0); cachee %1, 0x440(%0)	\n"	\
-	"	cachee %1, 0x480(%0); cachee %1, 0x4c0(%0)	\n"	\
-	"	cachee %1, 0x500(%0); cachee %1, 0x540(%0)	\n"	\
-	"	cachee %1, 0x580(%0); cachee %1, 0x5c0(%0)	\n"	\
-	"	cachee %1, 0x600(%0); cachee %1, 0x640(%0)	\n"	\
-	"	cachee %1, 0x680(%0); cachee %1, 0x6c0(%0)	\n"	\
-	"	cachee %1, 0x700(%0); cachee %1, 0x740(%0)	\n"	\
-	"	cachee %1, 0x780(%0); cachee %1, 0x7c0(%0)	\n"	\
-	"	.set pop					\n"	\
-		:							\
-		: "r" (base),						\
-		  "i" (op));
+#define cache_unroll(times, insn, op, addr, lsize) do {                 \
+        int i = 0;                                                      \
+        unroll(times, _cache_op, insn, op, (addr) + (i++ * (lsize)));   \
+} while (0)
 
 /* build blast_xxx, blast_xxx_page, blast_xxx_page_indexed */
 #define __BUILD_BLAST_CACHE(pfx, desc, indexop, hitop, lsize, extra)	\
@@ -590,7 +267,8 @@ static inline void extra##blast_##pfx##cache##lsize(void)		\
 									\
 	for (ws = 0; ws < ws_end; ws += ws_inc)				\
 		for (addr = start; addr < end; addr += lsize * 32)	\
-			cache##lsize##_unroll32(addr|ws, indexop);	\
+                        cache_unroll(32, kernel_cache, indexop,         \
+                                     addr | ws, lsize);                 \
 									\
 	__##pfx##flush_epilogue						\
 }									\
@@ -603,7 +281,7 @@ static inline void extra##blast_##pfx##cache##lsize##_page(unsigned long page) \
 	__##pfx##flush_prologue						\
 									\
 	do {								\
-		cache##lsize##_unroll32(start, hitop);			\
+		cache_unroll(32, kernel_cache, hitop, start, lsize);	\
 		start += lsize * 32;					\
 	} while (start < end);						\
 									\
@@ -624,7 +302,8 @@ static inline void extra##blast_##pfx##cache##lsize##_page_indexed(unsigned long
 									\
 	for (ws = 0; ws < ws_end; ws += ws_inc)				\
 		for (addr = start; addr < end; addr += lsize * 32)	\
-			cache##lsize##_unroll32(addr|ws, indexop);	\
+                        cache_unroll(32, kernel_cache, indexop,         \
+                                     addr | ws, lsize);                 \
 									\
 	__##pfx##flush_epilogue						\
 }
@@ -659,7 +338,7 @@ static inline void blast_##pfx##cache##lsize##_user_page(unsigned long page) \
 	__##pfx##flush_prologue						\
 									\
 	do {								\
-		cache##lsize##_unroll32_user(start, hitop);             \
+                cache_unroll(32, user_cache, hitop, start, lsize);      \
 		start += lsize * 32;					\
 	} while (start < end);						\
 									\
